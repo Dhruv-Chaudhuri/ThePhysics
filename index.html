@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celestial Physics Simulator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            overflow-x: hidden;
+            overflow-y: auto;
+            height: auto;
+            min-height: 100vh;
+            user-select: none; /* Prevent text selection */
+            -webkit-user-select: none; /* Safari */
+            -moz-user-select: none; /* Firefox */
+            -ms-user-select: none; /* IE/Edge */
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 20px;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .planet-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        select {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        select option {
+            background: #1a1a2e;
+            color: white;
+        }
+
+        .info-display {
+            font-size: 14px;
+            color: #00ffff;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .reset-btn, .pause-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ff5252);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .reset-btn:hover, .pause-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .pause-btn {
+            background: linear-gradient(45deg, #4a90e2, #357abd);
+            box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3);
+        }
+
+        .pause-btn:hover {
+            box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
+        }
+
+        .pause-btn.paused {
+            background: linear-gradient(45deg, #50c878, #3fa55c);
+            box-shadow: 0 4px 15px rgba(80, 200, 120, 0.3);
+        }
+
+        .pause-btn.paused:hover {
+            box-shadow: 0 6px 20px rgba(80, 200, 120, 0.4);
+        }
+
+        .simulation-area {
+            position: relative;
+            cursor: crosshair;
+            margin-top: 80px;
+            height: 2000px;
+            width: 100%;
+            min-height: 2000px;
+        }
+
+        .ground {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: linear-gradient(180deg, rgba(139, 69, 19, 0.8) 0%, rgba(101, 67, 33, 1) 100%);
+            border-top: 3px solid rgba(255, 255, 255, 0.2);
+            z-index: 10;
+        }
+
+        .object {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ffff00, #ff6600);
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            transition: none;
+        }
+
+        .object.bouncing {
+            animation: bounce-glow 0.2s ease-out;
+        }
+
+        .object.colliding {
+            animation: collision-flash 0.3s ease-out;
+        }
+
+        @keyframes bounce-glow {
+            0% { 
+                box-shadow: 0 0 25px rgba(255, 255, 0, 0.9);
+            }
+            100% { 
+                box-shadow: 0 0 15px rgba(255, 255, 0, 0.6);
+            }
+        }
+
+        @keyframes collision-flash {
+            0% { 
+                box-shadow: 0 0 15px rgba(255, 255, 0, 0.6);
+            }
+            100% { 
+                box-shadow: 0 0 15px rgba(255, 255, 0, 0.6);
+            }
+        }
+
+        .instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 18px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .instructions.hidden {
+            display: none;
+        }
+
+        .drag-indicator {
+            position: absolute;
+            border: 2px dashed rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.1);
+            display: none;
+        }
+
+        .velocity-vector {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .velocity-line {
+            stroke: #00ffff;
+            stroke-width: 3;
+            filter: drop-shadow(0 0 5px #00ffff);
+        }
+
+        .velocity-arrow {
+            fill: #00ffff;
+            filter: drop-shadow(0 0 5px #00ffff);
+        }
+
+        /* Styles for Persistent Launcher Arrows */
+        .launcher-arrow-line {
+            stroke: #75cf72; /* User-specified green color */
+            stroke-width: 3;
+            filter: drop-shadow(0 0 5px #75cf72); /* User-specified green glow */
+        }
+
+        .launcher-arrow-polygon {
+            fill: #75cf72;   /* User-specified green color */
+            filter: drop-shadow(0 0 5px #75cf72); /* User-specified green glow */
+        }
+
+        /* Planet-specific backgrounds */
+        .bg-mercury { background: linear-gradient(135deg, #8c7853 0%, #a58b5c 100%); }
+        .bg-venus { background: linear-gradient(135deg, #ffc649 0%, #ff9500 100%); }
+        .bg-earth { background: linear-gradient(135deg, #4a90e2 0%, #50c878 50%, #228b22 100%); }
+        .bg-moon { background: linear-gradient(135deg, #c0c0c0 0%, #808080 50%, #696969 100%); }
+        .bg-mars { background: linear-gradient(135deg, #cd5c5c 0%, #a0522d 100%); }
+        .bg-jupiter { background: linear-gradient(135deg, #d2691e 0%, #ff8c00 50%, #ffd700 100%); }
+        .bg-saturn { background: linear-gradient(135deg, #fad5a5 0%, #daa520 100%); }
+        .bg-uranus { background: linear-gradient(135deg, #4fddff 0%, #00bfff 100%); }
+        .bg-neptune { background: linear-gradient(135deg, #4169e1 0%, #0000cd 100%); }
+        .bg-sun { background: linear-gradient(135deg, #ffff00 0%, #ff6600 50%, #ff0000 100%); }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .planet-selector {
+                justify-content: center;
+            }
+            
+            .instructions {
+                font-size: 16px;
+                padding: 0 20px;
+            }
+        }
+
+        /* Menu styles */
+        #mainMenu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #101a23;
+            z-index: 1000;
+            font-family: "Space Grotesk", "Noto Sans", sans-serif;
+        }
+
+        .menu-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .menu-bg img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.2;
+        }
+
+        .menu-content {
+            position: relative;
+            z-index: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2.5rem 1rem;
+        }
+
+        .menu-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .menu-header .icon {
+            font-size: 4rem;
+            color: #0c7ff2;
+            margin-bottom: 1rem;
+            display: block; /* Ensures the icon is on its own line and centered */
+        }
+
+        .menu-header h1 {
+            color: white;
+            font-size: 3.5rem;
+            font-weight: bold;
+            margin: 1rem 0;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .menu-header p {
+            color: #94a3b8;
+            font-size: 1.25rem;
+            font-family: 'Noto Sans', sans-serif;
+        }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            width: 100%;
+            max-width: 32rem;
+        }
+
+        .menu-btn {
+            width: 100%;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 0.5rem;
+            color: white;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            font-family: 'Space Grotesk', sans-serif;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .menu-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+        }
+
+        .menu-btn .material-icons-round {
+            font-size: 1.5rem;
+        }
+
+        .menu-btn.primary {
+            background: #0c7ff2;
+        }
+
+        .menu-btn.primary:hover {
+            background: #0a6ac9;
+        }
+
+        .menu-btn.secondary {
+            background: #223649;
+        }
+
+        .menu-btn.secondary:hover {
+            background: #1c2d3e;
+        }
+
+        .menu-btn.tertiary {
+            background: transparent;
+        }
+
+        .menu-btn.tertiary:hover {
+            background: rgba(34, 54, 73, 0.5);
+        }
+
+        #simulatorContainer {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="mainMenu">
+        <div class="menu-bg">
+            <img alt="Wormhole background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3sLJqqxt-E_4arXUFhxFl8XAiLP3_FEVLF7jISCmPuNHlfQJpC1W_A3v99Im8PhBrF84ikKYGM1lrjSSvEfbka6EZ-QZ6TLh6nGHlbQm2kQElmU00l6PPLqmcnNl-4uJjLgg5OHOvnxZDq5YsZ5bugc9ofPS3GoW8eJp8MAuf5cU5maH2E4MYKuKylY0ULUwd18D-yvCjQeVFgOwqKL14FQ36sXS-tkc2RDUTKlCwa7Tf031h_DRjFPC1CqM64sllWWYASdvVQ2I" onerror="this.onerror=null; this.src='wormhole.jpeg';"/>
+        </div>
+        <div class="menu-content">
+            <div class="menu-header">
+                <span class="material-icons-round icon">dashboard</span>
+                <h1>Physics Simulator</h1>
+                <p>Explore the laws of the universe.</p>
+            </div>
+            <div class="menu-buttons">
+                <button class="menu-btn primary" id="startSimulationBtn">
+                    <span class="material-icons-round">play_arrow</span>
+                    New Simulation
+                </button>
+                <button class="menu-btn secondary" id="loadSimulationBtn">
+                    <span class="material-icons-round">folder_open</span>
+                    Load Simulation
+                </button>
+                <button class="menu-btn secondary" id="tutorialsBtn">
+                    <span class="material-icons-round">school</span>
+                    Tutorials
+                </button>
+                <button class="menu-btn secondary" id="settingsBtn">
+                    <span class="material-icons-round">settings</span>
+                    Settings
+                </button>
+                <button class="menu-btn tertiary" id="exitBtn">
+                    <span class="material-icons-round">exit_to_app</span>
+                    Exit
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="simulatorContainer">
+        <div class="container">
+            <div class="header">
+                <div class="controls">
+                    <div class="planet-selector">
+                        <label for="celestialBody">Celestial Body:</label>
+                        <select id="celestialBody">
+                            <option value="mercury">Mercury</option>
+                            <option value="venus">Venus</option>
+                            <option value="earth" selected>Earth</option>
+                            <option value="moon">Moon</option>
+                            <option value="mars">Mars</option>
+                            <option value="jupiter">Jupiter</option>
+                            <option value="saturn">Saturn</option>
+                            <option value="uranus">Uranus</option>
+                            <option value="neptune">Neptune</option>
+                            <option value="sun">Sun</option>
+                        </select>
+                    </div>
+                    <div class="info-display" id="gravityInfo">
+                        Earth: 9.81 m/s²
+                    </div>
+                    <button class="reset-btn" id="pauseBtn">Pause</button>
+                    <button class="reset-btn" id="resetBtn">Reset Simulation</button>
+                    <button class="reset-btn" id="restartBtn" style="background: linear-gradient(45deg, #4a90e2, #357abd); box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3);">Restart</button>
+                    
+                    <div class="tool-selector" style="display: flex; align-items: center; gap: 5px;">
+                        <label for="toolSelectInput" style="font-size: 14px;">Tool:</label>
+                        <select id="toolSelectInput" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 5px 8px; border-radius: 5px;">
+                            <option value="singleBall" selected>Single Ball</option>
+                            <option value="ephemeralLauncher">Ephemeral Launcher</option>
+                            <option value="addPersistentLauncher">Add Persistent Launcher</option>
+                        </select>
+                    </div>
+
+                    <div class="launcher-frequency-control" style="display: flex; align-items: center; gap: 5px;">
+                        <label for="launcherFrequencyInput" style="font-size: 14px;">Launcher Rate (balls/sec):</label>
+                        <input type="number" id="launcherFrequencyInput" value="5" min="0" max="50" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 5px 8px; border-radius: 5px; width: 60px;">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="simulation-area" id="simulationArea">
+                <div class="instructions" id="instructions">
+                    Click anywhere to drop an object<br>
+                    Or drag upward to throw with initial velocity<br>
+                    <em>Balls will collide with each other!</em>
+                </div>
+                <div class="ground"></div>
+                <div class="drag-indicator" id="dragIndicator"></div>
+                <svg class="velocity-vector" id="velocityVector" width="0" height="0">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                                refX="9" refY="3.5" orient="auto">
+                            <polygon class="velocity-arrow" points="0 0, 10 3.5, 0 7" />
+                        </marker>
+                    </defs>
+                    <line class="velocity-line" id="velocityLine" x1="0" y1="0" x2="0" y2="0" 
+                          marker-end="url(#arrowhead)" />
+                </svg>
+
+                <svg class="persistent-launcher-arrows-vector" id="persistentLauncherArrowsVector" width="0" height="0" style="position: absolute; top: 0; left: 0; z-index: 4; pointer-events: none;">
+                    <defs>
+                        <marker id="launcherArrowhead" markerWidth="10" markerHeight="7"
+                                refX="9" refY="3.5" orient="auto">
+                            <polygon class="launcher-arrow-polygon" points="0 0, 10 3.5, 0 7" />
+                        </marker>
+                    </defs>
+                    <!-- Launcher arrow lines will be dynamically added here -->
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class PhysicsSimulator {
+            constructor() {
+                this.celestialBodies = {
+                moon: { name: 'Moon', gravity: 1.62, restitution: 0.75 },
+                mercury: { name: 'Mercury', gravity: 3.7, restitution: 0.65 },
+                mars: { name: 'Mars', gravity: 3.71, restitution: 0.64 },
+                uranus: { name: 'Uranus', gravity: 8.69, restitution: 0.48 },
+                venus: { name: 'Venus', gravity: 8.87, restitution: 0.47 },
+                earth: { name: 'Earth', gravity: 9.81, restitution: 0.45 },
+                saturn: { name: 'Saturn', gravity: 10.44, restitution: 0.43 },
+                neptune: { name: 'Neptune', gravity: 11.15, restitution: 0.42 },
+                jupiter: { name: 'Jupiter', gravity: 24.79, restitution: 0.28 },
+                sun: { name: 'Sun', gravity: 274, restitution: 0.12 }
+            };
+                
+                this.currentBody = 'earth';
+                this.objects = [];
+                this.animationId = null;
+                this.isPaused = false;
+                this.pixelsPerMeter = 10;
+                this.isDragging = false;
+                this.dragStart = null;
+                this.dragCurrent = null;
+                this.ballRadius = 10; // pixels
+                // Sound related properties removed by user
+
+                this.currentTool = 'singleBall'; // 'singleBall', 'ephemeralLauncher', 'addPersistentLauncher'
+                this.launcherFrequency = 5; 
+                this.launcherIntervalId = null;
+                this.launcherTarget = { x: 0, y: 0 }; 
+                this.isLauncherFiring = false; 
+                this.persistentLaunchers = []; // To store persistent launcher data
+
+                this.mainMenu = document.getElementById('mainMenu');
+                this.simulatorContainer = document.getElementById('simulatorContainer');
+                this.initializeElements();
+                this.bindEvents();
+                this.updateGravityDisplay();
+                this.updateBackground();
+                this.bindMenuEvents();
+            }
+            
+            initializeElements() {
+                this.simulationArea = document.getElementById('simulationArea');
+                this.celestialBodySelect = document.getElementById('celestialBody');
+                this.gravityInfo = document.getElementById('gravityInfo');
+                this.resetBtn = document.getElementById('resetBtn');
+                this.pauseBtn = document.getElementById('pauseBtn');
+                this.instructions = document.getElementById('instructions');
+                this.dragIndicator = document.getElementById('dragIndicator');
+                this.velocityVector = document.getElementById('velocityVector');
+                this.velocityLine = document.getElementById('velocityLine');
+                this.toolSelectInput = document.getElementById('toolSelectInput');
+                this.launcherFrequencyInput = document.getElementById('launcherFrequencyInput');
+                this.persistentLauncherArrowsVector = document.getElementById('persistentLauncherArrowsVector');
+                this.restartBtn = document.getElementById('restartBtn');
+            }
+            
+            bindEvents() {
+                this.celestialBodySelect.addEventListener('change', (e) => {
+                    this.currentBody = e.target.value;
+                    this.updateGravityDisplay();
+                    this.updateBackground();
+                });
+                
+                this.resetBtn.addEventListener('click', () => {
+                    this.resetSimulation();
+                });
+                
+                this.restartBtn.addEventListener('click', () => {
+                    this.restartSimulation();
+                });
+                
+                this.pauseBtn.addEventListener('click', () => {
+                    this.togglePause();
+                });
+
+                // Mouse events
+                this.simulationArea.addEventListener('mousedown', (e) => {
+                    this.startDrag(e.clientX, e.clientY);
+                });
+                
+                this.simulationArea.addEventListener('mousemove', (e) => {
+                    this.updateDrag(e.clientX, e.clientY);
+                });
+                
+                this.simulationArea.addEventListener('mouseup', (e) => {
+                    this.endDrag(e.clientX, e.clientY);
+                });
+                
+                // Touch events
+                this.simulationArea.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    this.startDrag(touch.clientX, touch.clientY);
+                });
+                
+                this.simulationArea.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    this.updateDrag(touch.clientX, touch.clientY);
+                });
+                
+                this.simulationArea.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    if (e.changedTouches.length > 0) {
+                        const touch = e.changedTouches[0];
+                        this.endDrag(touch.clientX, touch.clientY);
+                    }
+                });
+
+                this.toolSelectInput.addEventListener('change', (e) => {
+                    this.handleToolChange(e.target.value);
+                });
+
+                this.launcherFrequencyInput.addEventListener('input', (e) => {
+                    let frequency = parseInt(e.target.value, 10);
+                    if (isNaN(frequency) || frequency < 0) frequency = 0;
+                    if (frequency > 50) frequency = 50; 
+                    e.target.value = frequency; 
+                    this.launcherFrequency = frequency;
+                    
+                    // Update ephemeral launcher if it's active
+                    if (this.isLauncherFiring && this.currentTool === 'ephemeralLauncher') {
+                        this.stopLauncherFire(); 
+                        if (this.launcherFrequency > 0) { 
+                            this.startLauncherFire(); 
+                        }
+                    } else if (this.launcherFrequency === 0 && this.launcherIntervalId && this.currentTool === 'ephemeralLauncher') {
+                        // This case handles turning ephemeral launcher off if frequency becomes 0 while it had an interval
+                        this.stopLauncherFire();
+                    }
+
+                    // Update existing persistent launchers
+                    this.persistentLaunchers.forEach(launcher => {
+                        clearInterval(launcher.intervalId);
+                        launcher.frequency = this.launcherFrequency;
+                        if (launcher.element) { // Update data attribute on the arrow element
+                           launcher.element.setAttribute('data-launcher-info', `Rate: ${this.launcherFrequency}/s`);
+                        }
+                        if (this.launcherFrequency > 0) {
+                            const interval = 1000 / this.launcherFrequency;
+                            launcher.intervalId = setInterval(() => {
+                                this.createObject(launcher.x, launcher.y, launcher.targetX, launcher.targetY);
+                                if (!this.animationId && this.objects.length > 0) {
+                                    this.startAnimation();
+                                }
+                            }, interval);
+                        }
+                    });
+                });
+            }
+            
+            handleToolChange(newTool) {
+                // Stop any active ephemeral launcher when changing tools
+                if (this.isLauncherFiring) {
+                    this.stopLauncherFire();
+                }
+                // If switching away from adding a persistent launcher, reset drag state
+                if (this.currentTool === 'addPersistentLauncher' && newTool !== 'addPersistentLauncher'){
+                    this.isDragging = false;
+                    this.hideVelocityVector();
+                }
+
+                this.currentTool = newTool;
+                this.launcherFrequencyInput.style.display = (newTool === 'ephemeralLauncher' || newTool === 'addPersistentLauncher') ? 'flex' : 'none';
+
+                switch (this.currentTool) {
+                    case 'singleBall':
+                        this.instructions.innerHTML = 'Click anywhere to drop an object<br>Or drag upward to throw with initial velocity<br><em>Balls will collide with each other!</em>';
+                        this.dragIndicator.style.display = this.isDragging ? 'block' : 'none';
+                        break;
+                    case 'ephemeralLauncher':
+                        this.instructions.innerHTML = 'Drag to aim & set power. Release to fire. <br>Click/Drag again to stop & re-aim ephemeral launcher.';
+                        this.dragIndicator.style.display = 'none';
+                        break;
+                    case 'addPersistentLauncher':
+                        this.instructions.innerHTML = 'Drag to place a persistent launcher. <br>It will fire based on current rate. Cannot be stopped individually yet.';
+                        this.dragIndicator.style.display = 'none';
+                        break;
+                }
+            }
+            
+            startDrag(x, y) {
+                const rect = this.simulationArea.getBoundingClientRect();
+                this.dragStart = {
+                    x: x - rect.left,
+                    y: y - rect.top
+                };
+                this.dragCurrent = { ...this.dragStart }; 
+                this.isDragging = true; 
+
+                if (this.currentTool === 'ephemeralLauncher') {
+                    this.stopLauncherFire(); // Ensure any previous interval is cleared
+                    this.launcherTarget = { ...this.dragStart }; // Initial target
+                    this.startLauncherFire(); // Start firing mechanism on mousedown
+                } else if (this.currentTool === 'addPersistentLauncher') {
+                    // If ephemeral was firing, stop it (though this.isLauncherFiring might be false if already stopped)
+                    if (this.launcherIntervalId) { 
+                        this.stopLauncherFire();
+                    }
+                    // For addPersistentLauncher, dragStart set here is used in endDrag to place it.
+                    // No dragStart = null here; it relies on a full drag to place.
+                } else { // singleBall
+                    this.dragIndicator.style.display = 'block';
+                    this.updateDragIndicator();
+                }
+                this.hideInstructions();
+            }
+            
+            updateDrag(x, y) {
+                if (!this.isDragging || !this.dragStart) return;
+                
+                const rect = this.simulationArea.getBoundingClientRect();
+                this.dragCurrent = { // Update dragCurrent for visual feedback in both modes
+                    x: x - rect.left,
+                    y: y - rect.top
+                };
+
+                if (this.currentTool === 'ephemeralLauncher') {
+                    this.launcherTarget = { ...this.dragCurrent }; // Store the potential target for the launcher
+                    this.updateVelocityVector(); // Show aiming vector
+                } else {
+                    this.updateDragIndicator();
+                    this.updateVelocityVector();
+                }
+            }
+            
+            endDrag(x, y) {
+                if (!this.isDragging || !this.dragStart ) {
+                    this.isDragging = false; 
+                    this.hideVelocityVector();
+                    // If ephemeral launcher was potentially firing and drag was aborted (no dragStart or not dragging anymore)
+                    if (this.currentTool === 'ephemeralLauncher' && this.isLauncherFiring) {
+                        this.stopLauncherFire();
+                    }
+                    return;
+                }
+                
+                const rect = this.simulationArea.getBoundingClientRect();
+                const finalDragPos = {
+                    x: this.dragCurrent.x, 
+                    y: this.dragCurrent.y  
+                };
+
+                if (this.currentTool === 'ephemeralLauncher') {
+                    this.launcherTarget = { ...finalDragPos }; 
+                    // Crucially, stop the firing mechanism when the mouse button is released.
+                    this.stopLauncherFire(); 
+                    this.hideVelocityVector(); // Hide aim vector after stopping/firing once.
+                } else if (this.currentTool === 'addPersistentLauncher') {
+                    if (this.dragStart) { 
+                        this.addPersistentLauncher(this.dragStart, finalDragPos);
+                    }
+                    this.hideVelocityVector(); 
+                } else { // singleBall tool
+                    this.createObject(this.dragStart.x, this.dragStart.y, finalDragPos.x, finalDragPos.y);
+                    this.dragIndicator.style.display = 'none';
+                    this.hideVelocityVector();
+                }
+                this.isDragging = false; // Ensure this is set at the end for all tools.
+            }
+            
+            updateDragIndicator() {
+                if (!this.isDragging) return;
+                
+                const size = Math.min(
+                    Math.abs(this.dragCurrent.x - this.dragStart.x),
+                    Math.abs(this.dragCurrent.y - this.dragStart.y)
+                ) * 2;
+                
+                this.dragIndicator.style.left = (this.dragStart.x - size/2) + 'px';
+                this.dragIndicator.style.top = (this.dragStart.y - size/2) + 'px';
+                this.dragIndicator.style.width = size + 'px';
+                this.dragIndicator.style.height = size + 'px';
+            }
+            
+            updateVelocityVector() {
+                if (!this.isDragging) return;
+                
+                const dx = this.dragStart.x - this.dragCurrent.x;
+                const dy = this.dragStart.y - this.dragCurrent.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                
+                if (length > 10) {
+                    this.velocityVector.style.width = this.simulationArea.offsetWidth + 'px';
+                    this.velocityVector.style.height = this.simulationArea.offsetHeight + 'px';
+                    
+                    this.velocityLine.setAttribute('x1', this.dragStart.x);
+                    this.velocityLine.setAttribute('y1', this.dragStart.y);
+                    this.velocityLine.setAttribute('x2', this.dragStart.x + dx * 0.5);
+                    this.velocityLine.setAttribute('y2', this.dragStart.y + dy * 0.5);
+                } else {
+                    this.hideVelocityVector();
+                }
+            }
+            
+            hideVelocityVector() {
+                this.velocityVector.style.width = '0px';
+                this.velocityVector.style.height = '0px';
+            }
+            
+            createObject(startX, startY, endX, endY) {
+                const dx = startX - endX;
+                const dy = startY - endY;
+                const dragDistance = Math.sqrt(dx * dx + dy * dy);
+                
+                const velocityScale = 0.2;
+                const initialVelocityX = dx * velocityScale;
+                const initialVelocityY = dy * velocityScale;
+                
+                const object = {
+                    id: Date.now() + Math.random(),
+                    element: this.createObjectElement(),
+                    x: startX,
+                    y: startY,
+                    vx: initialVelocityX,
+                    vy: initialVelocityY,
+                    onGround: false,
+                    bounceCount: 0,
+                    isResting: false,
+                    radius: this.ballRadius,
+                    mass: 1.0, // All balls have equal mass
+                    lastCollisionTime: 0
+                };
+                
+                this.objects.push(object);
+                this.simulationArea.appendChild(object.element);
+                this.updateObjectPosition(object);
+                
+                if (!this.animationId) {
+                    this.startAnimation();
+                }
+            }
+            
+            createObjectElement() {
+                const element = document.createElement('div');
+                element.className = 'object';
+                return element;
+            }
+            
+            updateObjectPosition(object) {
+                object.element.style.left = (object.x - this.ballRadius) + 'px';
+                object.element.style.top = (object.y - this.ballRadius) + 'px';
+            }
+            
+            // Ball-to-ball collision detection
+            checkBallCollision(ball1, ball2) {
+                const dx = ball2.x - ball1.x;
+                const dy = ball2.y - ball1.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const minDistance = ball1.radius + ball2.radius;
+                
+                return distance < minDistance;
+            }
+            
+            // Calculate collision response using elastic collision physics
+            resolveBallCollision(ball1, ball2) {
+                const currentTime = Date.now();
+                
+                // Prevent multiple collisions in rapid succession
+                if (currentTime - ball1.lastCollisionTime < 50 || 
+                    currentTime - ball2.lastCollisionTime < 50) {
+                    return;
+                }
+                
+                ball1.lastCollisionTime = currentTime;
+                ball2.lastCollisionTime = currentTime;
+                
+                // Calculate collision normal
+                const dx = ball2.x - ball1.x;
+                const dy = ball2.y - ball1.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance === 0) return; // Prevent division by zero
+                
+                // Normalize collision vector
+                const nx = dx / distance;
+                const ny = dy / distance;
+                
+                // Separate overlapping balls
+                const overlap = (ball1.radius + ball2.radius) - distance;
+                const separationX = nx * overlap * 0.5;
+                const separationY = ny * overlap * 0.5;
+                
+                ball1.x -= separationX;
+                ball1.y -= separationY;
+                ball2.x += separationX;
+                ball2.y += separationY;
+                
+                // Calculate relative velocity
+                const dvx = ball2.vx - ball1.vx;
+                const dvy = ball2.vy - ball1.vy;
+                
+                // Calculate relative velocity along collision normal
+                const dvn = dvx * nx + dvy * ny;
+                
+                // Do not resolve if velocities are separating
+                if (dvn > 0) return;
+                
+                // Calculate collision impulse with restitution
+                const restitution = this.celestialBodies[this.currentBody].restitution;
+                const impulse = 2 * dvn / (ball1.mass + ball2.mass);
+                
+                // Apply impulse to velocities
+                ball1.vx += impulse * ball2.mass * nx * restitution;
+                ball1.vy += impulse * ball2.mass * ny * restitution;
+                ball2.vx -= impulse * ball1.mass * nx * restitution;
+                ball2.vy -= impulse * ball1.mass * ny * restitution;
+                
+                // Add some energy loss for realistic collisions
+                let energyLoss = 0.95;
+                // If it's a very gentle collision, increase energy loss to dampen micro-bounces
+                if (Math.abs(dvn) < 0.5) { 
+                    energyLoss = 0.85; 
+                }
+
+                ball1.vx *= energyLoss;
+                ball1.vy *= energyLoss;
+                ball2.vx *= energyLoss;
+                ball2.vy *= energyLoss;
+                
+                // Visual collision effect
+                ball1.element.classList.add('colliding');
+                ball2.element.classList.add('colliding');
+                
+                setTimeout(() => {
+                    ball1.element.classList.remove('colliding');
+                    ball2.element.classList.remove('colliding');
+                }, 300);
+                
+                // Wake up resting balls if they get hit
+                if (ball1.isResting && (Math.abs(ball1.vx) > 0.5 || Math.abs(ball1.vy) > 0.5)) {
+                    ball1.isResting = false;
+                    ball1.onGround = false;
+                }
+                if (ball2.isResting && (Math.abs(ball2.vx) > 0.5 || Math.abs(ball2.vy) > 0.5)) {
+                    ball2.isResting = false;
+                    ball2.onGround = false;
+                }
+            }
+            
+            startAnimation() {
+                const animate = () => {
+                    if (!this.isPaused) {
+                        this.updatePhysics();
+                    }
+                    if (this.objects.length > 0) {
+                        this.animationId = requestAnimationFrame(animate);
+                    } else {
+                        this.animationId = null;
+                    }
+                };
+                animate();
+            }
+            
+            updatePhysics() {
+                const dt = 1/60;
+                const gravity = this.celestialBodies[this.currentBody].gravity;
+                const restitution = this.celestialBodies[this.currentBody].restitution;
+                const groundY = this.simulationArea.offsetHeight - 50 - this.ballRadius;
+                const airResistance = 0.999;
+                const minVelocity = 0.8;
+                
+                // Check for ball-to-ball collisions
+                for (let i = 0; i < this.objects.length; i++) {
+                    for (let j = i + 1; j < this.objects.length; j++) {
+                        if (this.checkBallCollision(this.objects[i], this.objects[j])) {
+                            this.resolveBallCollision(this.objects[i], this.objects[j]);
+                        }
+                    }
+                }
+                
+                this.objects.forEach(object => {
+                    if (object.isResting) return;
+                    
+                    // Apply gravity
+                    object.vy += gravity * this.pixelsPerMeter * dt;
+                    
+                    // Apply minimal air resistance only to horizontal velocity
+                    object.vx *= airResistance;
+                    
+                    // Update position
+                    object.x += object.vx * this.pixelsPerMeter * dt;
+                    object.y += object.vy * this.pixelsPerMeter * dt;
+                    
+                    // Ground collision with bounce physics
+                    if (object.y >= groundY && object.vy > 0) {
+                        object.y = groundY;
+                        
+                        const bounceVelocity = -object.vy * restitution;
+                        
+                        if (Math.abs(bounceVelocity) > minVelocity && object.bounceCount < 20) {
+                            object.vy = bounceVelocity;
+                            object.bounceCount++;
+                            
+                            object.element.classList.add('bouncing');
+                            setTimeout(() => {
+                                object.element.classList.remove('bouncing');
+                            }, 200);
+                        } else {
+                            object.vy = 0;
+                            object.vx *= 0.975; // Further reduced friction by 50% (from 5% to 2.5% per frame)
+                            
+                            if (Math.abs(object.vx) < minVelocity && Math.abs(object.vy) < minVelocity) {
+                                object.vx = 0;
+                                object.vy = 0;
+                                object.isResting = true;
+                                object.onGround = true;
+                            }
+                        }
+                    }
+                    
+                    // Wall collisions with bounce
+                    if (object.x <= this.ballRadius) {
+                        object.x = this.ballRadius;
+                        object.vx = -object.vx * restitution * 0.7;
+                    } else if (object.x >= this.simulationArea.offsetWidth - this.ballRadius) {
+                        object.x = this.simulationArea.offsetWidth - this.ballRadius;
+                        object.vx = -object.vx * restitution * 0.7;
+                    }
+                    
+                    this.updateObjectPosition(object);
+                });
+            }
+            
+            updateGravityDisplay() {
+                const body = this.celestialBodies[this.currentBody];
+                this.gravityInfo.textContent = `${body.name}: ${body.gravity} m/s² | Height: 200m | Bounce: ${(body.restitution * 100).toFixed(0)}%`;
+            }
+            
+            updateBackground() {
+                this.simulationArea.className = 'simulation-area';
+                this.simulationArea.classList.add(`bg-${this.currentBody}`);
+            }
+            
+            hideInstructions() {
+                this.instructions.classList.add('hidden');
+            }
+            
+            togglePause() {
+                this.isPaused = !this.isPaused;
+                
+                if (this.isPaused) {
+                    this.pauseBtn.textContent = 'Resume';
+                    this.pauseBtn.classList.add('paused');
+                } else {
+                    this.pauseBtn.textContent = 'Pause';
+                    this.pauseBtn.classList.remove('paused');
+                }
+                
+                // If we have objects but no animation running, restart it
+                if (!this.isPaused && this.objects.length > 0 && !this.animationId) {
+                    this.startAnimation();
+                }
+            }
+            
+            resetSimulation() {
+                this.objects.forEach(object => {
+                    if (object.element.parentNode) {
+                        object.element.parentNode.removeChild(object.element);
+                    }
+                });
+                this.objects = [];
+                
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+                
+                this.instructions.classList.remove('hidden');
+                this.isDragging = false;
+                this.isPaused = false;
+                this.pauseBtn.textContent = 'Pause';
+                this.pauseBtn.classList.remove('paused');
+                this.dragIndicator.style.display = 'none';
+                this.hideVelocityVector();
+
+                // Clear persistent launchers and their SVG arrows
+                if (this.persistentLauncherArrowsVector) {
+                    this.persistentLaunchers.forEach(launcher => {
+                        if (launcher.intervalId) {
+                            clearInterval(launcher.intervalId);
+                        }
+                        if (launcher.element && launcher.element.parentNode === this.persistentLauncherArrowsVector) {
+                            this.persistentLauncherArrowsVector.removeChild(launcher.element);
+                        }
+                    });
+                    // Hide the SVG container for launcher arrows
+                    this.persistentLauncherArrowsVector.style.width = '0px';
+                    this.persistentLauncherArrowsVector.style.height = '0px';
+                    // this.persistentLauncherArrowsVector.style.display = 'none'; // Alternative way to hide
+                }
+                this.persistentLaunchers = [];
+
+                this.stopLauncherFire();
+            }
+            
+            bindMenuEvents() {
+                document.getElementById('startSimulationBtn').addEventListener('click', () => {
+                    this.mainMenu.style.display = 'none';
+                    this.simulatorContainer.style.display = 'block';
+                });
+                
+                document.getElementById('loadSimulationBtn').addEventListener('click', () => {
+                    alert('Load simulation feature coming soon!');
+                });
+                
+                document.getElementById('tutorialsBtn').addEventListener('click', () => {
+                    alert('Tutorials coming soon!');
+                });
+                
+                document.getElementById('settingsBtn').addEventListener('click', () => {
+                    alert('Settings panel coming soon!');
+                });
+                
+                document.getElementById('exitBtn').addEventListener('click', () => {
+                    if (confirm('Are you sure you want to exit the simulation?')) {
+                        this.simulatorContainer.style.display = 'none';
+                        this.mainMenu.style.display = 'block';
+                    }
+                });
+            }
+
+            startLauncherFire() {
+                if (this.currentTool !== 'ephemeralLauncher') return;
+                if (!this.dragStart) { // Can't fire without an origin set by a drag
+                    this.isLauncherFiring = false;
+                    return;
+                }
+                // If an interval is already running for the ephemeral launcher, don't start another.
+                if (this.launcherIntervalId) return;
+
+                this.isLauncherFiring = true; 
+
+                if (this.launcherFrequency > 0) {
+                    const interval = 1000 / this.launcherFrequency;
+                    // Fire first bullet almost immediately, then set interval for subsequent ones
+                    this.fireLauncherBullet(); 
+                    this.launcherIntervalId = setInterval(() => {
+                        this.fireLauncherBullet();
+                    }, interval);
+                } else { // Frequency is 0, so fire one shot on mousedown (drag start)
+                    this.fireLauncherBullet();
+                    this.isLauncherFiring = false; // Not continuously firing
+                }
+            }
+
+            stopLauncherFire() {
+                if (this.launcherIntervalId) {
+                    clearInterval(this.launcherIntervalId);
+                    this.launcherIntervalId = null;
+                }
+                this.isLauncherFiring = false;
+            }
+
+            fireLauncherBullet() {
+                if (this.currentTool === 'ephemeralLauncher') {
+                    // For ephemeral launcher: must be dragging, firing, and have valid start/target
+                    if (!this.isDragging || !this.isLauncherFiring || !this.dragStart || !this.launcherTarget) {
+                        return; 
+                    }
+                } else {
+                    // For other potential uses (like a persistent launcher calling this directly, though not current design)
+                    // a basic check for aim info is still good.
+                    if (!this.dragStart || !this.launcherTarget) {
+                        // This case primarily applies if a persistent launcher were to call this. 
+                        // It needs its own start/target, which would be passed or set differently.
+                        // For now, persistent launchers create objects directly.
+                        return;
+                    }
+                }
+
+                // Use this.dragStart as origin, and this.launcherTarget for direction/power
+                this.createObject(this.dragStart.x, this.dragStart.y, this.launcherTarget.x, this.launcherTarget.y);
+                
+                if (!this.animationId && this.objects.length > 0) {
+                    this.startAnimation();
+                }
+            }
+
+            addPersistentLauncher(startPos, endPos) {
+                // Ensure the SVG container for launcher arrows is sized and visible
+                if (this.persistentLauncherArrowsVector) {
+                    this.persistentLauncherArrowsVector.style.width = this.simulationArea.offsetWidth + 'px';
+                    this.persistentLauncherArrowsVector.style.height = this.simulationArea.offsetHeight + 'px';
+                    this.persistentLauncherArrowsVector.style.display = 'block'; 
+                }
+
+                const newLauncher = {
+                    id: Date.now(),
+                    x: startPos.x,
+                    y: startPos.y,
+                    targetX: endPos.x,
+                    targetY: endPos.y,
+                    frequency: this.launcherFrequency, 
+                    intervalId: null,
+                    element: this.createLauncherArrowElement(startPos.x, startPos.y, endPos.x, endPos.y, this.launcherFrequency)
+                };
+
+                if (this.persistentLauncherArrowsVector) {
+                    this.persistentLauncherArrowsVector.appendChild(newLauncher.element);
+                }
+                
+                if (newLauncher.frequency > 0) {
+                    const interval = 1000 / newLauncher.frequency;
+                    newLauncher.intervalId = setInterval(() => {
+                        this.createObject(newLauncher.x, newLauncher.y, newLauncher.targetX, newLauncher.targetY);
+                        if (!this.animationId && this.objects.length > 0) {
+                            this.startAnimation();
+                        }
+                    }, interval);
+                } else { // Fire once if frequency is 0 for a persistent launcher
+                     this.createObject(newLauncher.x, newLauncher.y, newLauncher.targetX, newLauncher.targetY);
+                     if (!this.animationId && this.objects.length > 0) {
+                        this.startAnimation();
+                    }
+                }
+                this.persistentLaunchers.push(newLauncher);
+            }
+
+            createLauncherArrowElement(startX, startY, targetX, targetY, frequency) {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', startX);
+                line.setAttribute('y1', startY);
+                
+                const dxForArrowDisplay = startX - targetX; 
+                const dyForArrowDisplay = startY - targetY;
+                
+                // Visual arrow length is half the "drag vector", same as ephemeral aiming arrow
+                line.setAttribute('x2', startX + dxForArrowDisplay * 0.5); 
+                line.setAttribute('y2', startY + dyForArrowDisplay * 0.5);
+                
+                line.setAttribute('class', 'launcher-arrow-line');
+                line.setAttribute('marker-end', 'url(#launcherArrowhead)');
+                line.setAttribute('data-launcher-info', `Rate: ${frequency}/s`); 
+                return line;
+            }
+
+            restartSimulation() {
+                // Remove all ball objects
+                this.objects.forEach(object => {
+                    if (object.element && object.element.parentNode) {
+                        object.element.parentNode.removeChild(object.element);
+                    }
+                });
+                this.objects = [];
+
+                // If the main animation loop was running for these objects, stop it.
+                // Persistent launchers run on their own intervals and will continue.
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null; 
+                    // The animation loop in startAnimation() checks if this.objects.length > 0.
+                    // If only persistent launchers remain, they will add objects and restart the loop if needed.
+                }
+
+                // Reset dragging state and hide related UI elements
+                this.isDragging = false;
+                this.dragIndicator.style.display = 'none';
+                this.hideVelocityVector();
+
+                // Show instructions if no objects are left (persistent launchers don't count for this)
+                if (this.objects.length === 0) {
+                    this.instructions.classList.remove('hidden');
+                }
+                
+                // Note: We are NOT resetting this.isPaused, currentBody, or stopping persistent launchers.
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            new PhysicsSimulator();
+        });
+    </script>
+</body>
+</html>
